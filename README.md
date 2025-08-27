@@ -4,19 +4,19 @@
 
 A Discord bot designed to track LeetCode study group check-ins and boost organizational engagement.
 
-## Purpose
+## Commands
 
-This bot helps LeetCode study groups maintain accountability and motivation by:
-- Tracking daily check-ins from members
-- Recording progress and participation
-- Encouraging consistent practice through automated reminders
+### `/checkin`
+Records your daily LeetCode practice check-in. Members can use this command once per day to log their study progress and maintain their streak.
+
+### `/board`
+Displays the leaderboard showing all members' check-in statistics, including:
+- Total check-ins count
+- Current streak
+- Longest streak achieved
+- Rankings among study group members
 
 ## Setup
-
-### Prerequisites
-- Discord server with administrator permissions
-- Cloudflare Workers account
-- Discord Application and Bot Token
 
 ### Installation Steps
 
@@ -43,19 +43,6 @@ Configure these secrets in your Cloudflare Workers settings:
 - `DISCORD_PUBLIC_KEY`: Your Discord application public key
 - `DISCORD_GUILD_ID`: Your Discord server/guild ID
 
-### Database Setup
+The secret variable must be named exactly: `DISCORD_PUBLIC_KEY`
 
-The database binding must be named exactly: `DB`
-
-Create a D1 database in Cloudflare and bind it to your worker with the name `DB`.
-
-### Deployment
-
-```bash
-npm install
-npx wrangler deploy
-```
-
-## Usage
-
-Once deployed, the bot will automatically track check-ins in your Discord server and help maintain engagement in your LeetCode study group.
+The database binding must be named exactly: `db`
