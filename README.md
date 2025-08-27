@@ -1,5 +1,7 @@
 # Discord Check-In Bot
 
+**Built with: Cloudflare Workers | Discord API | D1 Database | JavaScript**
+
 ![Confidence Level Meme](1730642416968.jpg)
 
 A Discord bot designed to track LeetCode study group check-ins and boost organizational engagement.
@@ -7,14 +9,13 @@ A Discord bot designed to track LeetCode study group check-ins and boost organiz
 ## Commands
 
 ### `/checkin`
-Records your daily LeetCode practice check-in. Members can use this command once per day to log their study progress and maintain their streak.
+Daily check-in to maintain your study streak.
 
 ### `/board`
-Displays the leaderboard showing all members' check-in statistics, including:
-- Total check-ins count
-- Current streak
-- Longest streak achieved
-- Rankings among study group members
+Shows top 10 members ranked by consecutive check-in days.
+
+### `/leaveday`
+Use your weekly leave pass to make up for yesterday's missed check-in.
 
 ## Setup
 
