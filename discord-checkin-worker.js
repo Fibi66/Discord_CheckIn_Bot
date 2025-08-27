@@ -1,7 +1,21 @@
 // ---- helpers: response & utils ----
 const j = (o, init={}) => new Response(JSON.stringify(o), {headers:{'content-type':'application/json'}, ...init});
-const td = (d=new Date()) => new Date(new Date(d.toISOString().slice(0,10))); // UTC yyyy-mm-dd -> Date
-const ymd = d => d.toISOString().slice(0,10);
+// 使用西雅图时间（太平洋时区，自动处理PDT/PST）
+const td = (d=new Date()) => {
+  const seattleDate = new Date(d.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+  // 获取西雅图的年月日
+  const year = seattleDate.getFullYear();
+  const month = String(seattleDate.getMonth() + 1).padStart(2, '0');
+  const day = String(seattleDate.getDate()).padStart(2, '0');
+  return new Date(`${year}-${month}-${day}T00:00:00Z`);
+};
+const ymd = d => {
+  const seattleDate = new Date(d.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+  const year = seattleDate.getFullYear();
+  const month = String(seattleDate.getMonth() + 1).padStart(2, '0');
+  const day = String(seattleDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 function isoWeekStr(d){
   const date = td(d);
   const dayNum = (date.getUTCDay()+6)%7;
@@ -37,15 +51,21 @@ async function handleCheckin(db, guild_id, user_id){
     return j({type:4, data:{flags:64, content:`✅ 已签到！当前连续：1 天`}});
   }
 
-  const last = row.last_checkin ? new Date(row.last_checkin+"T00:00:00Z") : null;
-  const diff = last ? Math.floor((+td()-+last)/86400000) : 9e9;
+  // 使用日期字符串比较，避免时区问题
+  const last = row.last_checkin;
   let streak = row.streak ?? 0;
   let leave_week = row.leave_week ?? null;
   let leave_left = row.leave_left ?? 0;
 
-  if(row.last_checkin === tStr) return j({type:4, data:{flags:64, content:`今天已经签过到啦～ 连续：${streak} 天`}});
+  if(last === tStr) return j({type:4, data:{flags:64, content:`今天已经签过到啦～ 连续：${streak} 天`}});
 
-  if(diff===1){
+  // 计算日期差异（基于日期字符串）
+  const lastDate = new Date(last + "T00:00:00Z");
+  const todayDate = new Date(tStr + "T00:00:00Z");
+  const diffDays = Math.round((todayDate - lastDate) / 86400000);
+
+  if(diffDays === 1){
+    // 连续签到
     streak += 1;
   }else{
     // 断签了，重置连续天数
@@ -100,42 +120,36 @@ async function handleLeave(db, guild_id, user_id){
     return j({type:4, data:{flags:64, content:"❌ 你本周的请假券已使用过了～"}});
   }
 
-  // 计算缺勤天数
-  const last = new Date(row.last_checkin + "T00:00:00Z");
-  const diff = Math.floor((+today - +last) / 86400000);
+  // 计算缺勤天数（基于日期字符串）
+  const lastDate = new Date(row.last_checkin + "T00:00:00Z");
+  const todayDate = new Date(tStr + "T00:00:00Z");
+  const diffDays = Math.round((todayDate - lastDate) / 86400000);
   
   // 今天已经签到了，没有缺勤
-  if(row.last_checkin === tStr || diff === 0){
-    return j({type:4, data:{flags:64, content:"✨ 本周没有缺勤，无需补签！"}});
+  if(row.last_checkin === tStr || diffDays === 0){
+    return j({type:4, data:{flags:64, content:"✨ 今天已经签到，无需补签！"}});
   }
   
   // 连续签到中（昨天签的），没有缺勤
-  if(diff === 1){
+  if(diffDays === 1){
     return j({type:4, data:{flags:64, content:"✨ 你的签到连续中，无需补签！"}});
   }
   
-  // 缺勤2天或以上，补签昨天
-  const yesterday = new Date(today);
+  // 缺勤2天或以上，补签到昨天，从补签日重新开始计算streak
+  // 计算昨天的日期
+  const yesterday = new Date(todayDate);
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = ymd(yesterday);
   
-  // 计算补签后的连续天数
-  let newStreak = 1; // 默认重新开始
-  if(diff === 2){
-    // 只缺了昨天一天，补签后恢复连续
-    newStreak = (row.streak || 0) + 1;
-  }
-  // diff > 2 的情况，断签太久，即使补签昨天也只能算1天
+  // 补签后的连续天数 = 1（因为断签了，从补签日重新开始）
+  // 补签不能恢复之前的连续记录，只是避免今天签到时再次重置
+  let newStreak = 1;
   
-  // 更新数据：补签昨天，使用请假券
+  // 更新数据：补签到昨天，使用请假券
   await db.prepare("UPDATE streaks SET streak=?,last_checkin=?,leave_week=?,leave_left=? WHERE guild_id=? AND user_id=?")
     .bind(newStreak, yesterdayStr, wStr, 0, guild_id, user_id).run();
   
-  if(diff === 2){
-    return j({type:4, data:{flags:64, content:`✅ 已使用请假券补签昨天！连续签到：${newStreak} 天`}});
-  } else {
-    return j({type:4, data:{flags:64, content:`✅ 已使用请假券补签昨天！由于断签超过1天，连续天数重置为：1 天`}});
-  }
+  return j({type:4, data:{flags:64, content:`✅ 已使用请假券补签到${yesterdayStr}！连续签到重新开始：${newStreak} 天\n💡 记得今天也要签到，将会是第2天！`}});
 }
 
 // ---- Worker entry ----
