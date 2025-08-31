@@ -1,20 +1,32 @@
 // ---- helpers: response & utils ----
 const j = (o, init={}) => new Response(JSON.stringify(o), {headers:{'content-type':'application/json'}, ...init});
-// 使用西雅图时间（太平洋时区，自动处理PDT/PST）
+// 使用西雅图时间（太平洋时区）
 const td = (d=new Date()) => {
-  const seattleDate = new Date(d.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
-  // 获取西雅图的年月日
-  const year = seattleDate.getFullYear();
-  const month = String(seattleDate.getMonth() + 1).padStart(2, '0');
-  const day = String(seattleDate.getDate()).padStart(2, '0');
-  return new Date(`${year}-${month}-${day}T00:00:00Z`);
+  // 获取太平洋时区的偏移量（简化版夏令时判断）
+  // 3月-11月为PDT (UTC-7)，其他月份为PST (UTC-8)
+  const month = d.getUTCMonth() + 1;
+  const offsetHours = (month >= 3 && month <= 11) ? -7 : -8;
+  
+  // 直接从UTC时间减去偏移量得到西雅图时间
+  const seattleTime = new Date(d.getTime() + (offsetHours * 3600000));
+  
+  const year = seattleTime.getUTCFullYear();
+  const month_str = String(seattleTime.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(seattleTime.getUTCDate()).padStart(2, '0');
+  return new Date(`${year}-${month_str}-${day}T00:00:00Z`);
 };
 const ymd = d => {
-  const seattleDate = new Date(d.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
-  const year = seattleDate.getFullYear();
-  const month = String(seattleDate.getMonth() + 1).padStart(2, '0');
-  const day = String(seattleDate.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  // 获取太平洋时区的偏移量（简化版夏令时判断）
+  const month = d.getUTCMonth() + 1;
+  const offsetHours = (month >= 3 && month <= 11) ? -7 : -8;
+  
+  // 直接从UTC时间减去偏移量得到西雅图时间
+  const seattleTime = new Date(d.getTime() + (offsetHours * 3600000));
+  
+  const year = seattleTime.getUTCFullYear();
+  const month_str = String(seattleTime.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(seattleTime.getUTCDate()).padStart(2, '0');
+  return `${year}-${month_str}-${day}`;
 };
 function isoWeekStr(d){
   const date = td(d);
